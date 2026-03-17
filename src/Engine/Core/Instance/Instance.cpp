@@ -114,7 +114,7 @@ namespace Engine::Core::Instance
         return true;
     }
 
-    void Instance::initVulkan()
+    void Instance::createInstance()
     {
         VkApplicationInfo appInfo{};
         appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -154,4 +154,12 @@ namespace Engine::Core::Instance
         }
     }
 
+    ////////////////////
+    // PUBLIC METHODS //
+    ////////////////////
+
+    Instance::Instance() {
+        createInstance();
+        setupDebugMessenger();
+    }
 }

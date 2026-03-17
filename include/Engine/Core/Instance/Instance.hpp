@@ -22,7 +22,6 @@ namespace Engine::Core::Instance
         VkSurfaceKHR getSurface() const { return mSurface; }
 
     private:
-        void initVulkan();
         void createInstance();
 
         inline void setupDebugMessenger();
