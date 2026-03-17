@@ -1,0 +1,13 @@
+.vscode
+
+obj/
+obj
+
+bin/
+bin
+
+*.exe
+*.a
+*.so
+
+*.test*
