@@ -25,6 +25,13 @@ namespace Engine::Core::Device
     class PhysicalDevice
     {
     public:
+        struct SwapChainSupportDetails
+        {
+            VkSurfaceCapabilitiesKHR capabilities;
+            std::vector<VkSurfaceFormatKHR> formats;
+            std::vector<VkPresentModeKHR> presentModes;
+        };
+
         explicit PhysicalDevice(Instance::Instance &instance, Instance::Window &window);
         ~PhysicalDevice();
 
@@ -34,10 +41,14 @@ namespace Engine::Core::Device
         VkPhysicalDevice getDevice() const { return mDevice; }
 
         QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) const;
+        bool isDeviceSuitable(VkPhysicalDevice device) const;
+        bool checkDeviceExtensionSupport(VkPhysicalDevice device) const;
+        SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device) const;
+
+        friend class SwapChain;
 
     private:
         void pickPhysicalDevice();
-        bool isDeviceSuitable(VkPhysicalDevice device);
 
         VkPhysicalDevice mDevice{VK_NULL_HANDLE};
         Instance::Instance &mInstance;

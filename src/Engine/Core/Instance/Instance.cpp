@@ -128,9 +128,9 @@ namespace Engine::Core::Instance
         createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
         createInfo.pApplicationInfo = &appInfo;
 
-        uint32_t glfwExtensionCount = 0;
-        const char **glfwExtensions;
-        glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+        auto extensions = getRequiredExtensions();
+        createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
+        createInfo.ppEnabledExtensionNames = extensions.data();
 
         VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
         if (mEnableValidationLayers)
@@ -139,12 +139,11 @@ namespace Engine::Core::Instance
             createInfo.ppEnabledLayerNames = mValidationLayers.data();
 
             populateDebugMessengerCreateInfo(debugCreateInfo);
-            createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT *)&debugCreateInfo;
+            createInfo.pNext = reinterpret_cast<const void *>(&debugCreateInfo);
         }
         else
         {
             createInfo.enabledLayerCount = 0;
-
             createInfo.pNext = nullptr;
         }
 
@@ -154,11 +153,43 @@ namespace Engine::Core::Instance
         }
     }
 
+    void Instance::createSurface(Window &window)
+    {
+        window.createSurface(mVkInstance, &mSurface);
+    }
+
+    Instance::~Instance()
+    {
+        if (mEnableValidationLayers && mDebugMessenger != VK_NULL_HANDLE)
+        {
+            DestroyDebugUtilsMessengerEXT(mVkInstance, mDebugMessenger, nullptr);
+            mDebugMessenger = VK_NULL_HANDLE;
+        }
+
+        if (mSurface != VK_NULL_HANDLE)
+        {
+            vkDestroySurfaceKHR(mVkInstance, mSurface, nullptr);
+            mSurface = VK_NULL_HANDLE;
+        }
+
+        if (mVkInstance != VK_NULL_HANDLE)
+        {
+            vkDestroyInstance(mVkInstance, nullptr);
+            mVkInstance = VK_NULL_HANDLE;
+        }
+    }
+
     ////////////////////
     // PUBLIC METHODS //
     ////////////////////
 
-    Instance::Instance() {
+    Instance::Instance()
+        : mVkInstance(VK_NULL_HANDLE)
+        , mSurface(VK_NULL_HANDLE)
+        , mDebugMessenger(VK_NULL_HANDLE)
+        , mEnableValidationLayers(true)
+        , mValidationLayers{"VK_LAYER_KHRONOS_validation"}
+    {
         createInstance();
         setupDebugMessenger();
     }

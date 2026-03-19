@@ -22,6 +22,8 @@ namespace Engine::Core::Instance
         Window &operator=(Window &&) noexcept = default;
 
         GLFWwindow *getGLFWWindow() const { return mWindow; }
+        uint16_t getWidth() const { return mWidth; }
+        uint16_t getHeight() const { return mHeight; }
         void createSurface(VkInstance instance, VkSurfaceKHR *surface);
 
     private:

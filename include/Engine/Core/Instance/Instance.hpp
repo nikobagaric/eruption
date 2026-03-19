@@ -11,15 +11,17 @@ namespace Engine::Core::Instance
     {
     public:
         explicit Instance();
-        ~Instance() = default;
+        ~Instance();
 
         Instance(const Instance&) = delete;
-        Instance& operator=(const Instance&) = delete;  
+        Instance& operator=(const Instance&) = delete;
 
         // @todo: find out what to do with move op
 
         VkInstance getInstance() const { return mVkInstance; }
         VkSurfaceKHR getSurface() const { return mSurface; }
+
+        void createSurface(Window &window);
 
     private:
         void createInstance();
