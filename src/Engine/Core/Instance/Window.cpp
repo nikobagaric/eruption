@@ -8,19 +8,33 @@ namespace Engine::Core::Instance
 
     void Window::init()
     {
-        glfwInit();
+        if (!glfwInit())
+        {
+            throw std::runtime_error("failed to initialize GLFW");
+        }
 
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE); // @todo: TO BE CHANGED TO GLFW_TRUE
 
         mWindow = glfwCreateWindow(mWidth, mHeight, mWindowName.c_str(), nullptr, nullptr);
-
-        loop();
+        if (!mWindow)
+        {
+            glfwTerminate();
+            throw std::runtime_error("failed to create GLFW window");
+        }
     }
 
     void Window::loop() {
         while(!glfwWindowShouldClose(mWindow)) {
             glfwPollEvents();
+        }
+    }
+
+    void Window::createSurface(VkInstance instance, VkSurfaceKHR *surface)
+    {
+        if (glfwCreateWindowSurface(instance, mWindow, nullptr, surface) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to create window surface!");
         }
     }
 

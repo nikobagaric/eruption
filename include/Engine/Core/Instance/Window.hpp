@@ -5,22 +5,28 @@
 
 #include <cstdint>
 #include <string>
+#include <stdexcept>
 
-namespace Engine::Core::Instance {
-    class Window {
+namespace Engine::Core::Instance
+{
+    class Window
+    {
     public:
-        explicit Window(uint16_t width, uint16_t height, const std::string& windowName = "Window");
+        explicit Window(uint16_t width, uint16_t height, const std::string &windowName = "Window");
         ~Window();
 
-        Window(const Window&) = delete;
-        Window& operator=(const Window&) = delete;
+        Window(const Window &) = delete;
+        Window &operator=(const Window &) = delete;
 
-        Window(Window&&) noexcept = default;
-        Window& operator=(Window&&) noexcept = default;
+        Window(Window &&) noexcept = default;
+        Window &operator=(Window &&) noexcept = default;
 
         GLFWwindow *getGLFWWindow() const { return mWindow; }
-    private:
+        uint16_t getWidth() const { return mWidth; }
+        uint16_t getHeight() const { return mHeight; }
+        void createSurface(VkInstance instance, VkSurfaceKHR *surface);
 
+    private:
         void init();
         void loop();
 
@@ -29,6 +35,6 @@ namespace Engine::Core::Instance {
 
         std::string mWindowName;
 
-        GLFWwindow* mWindow;
+        GLFWwindow *mWindow;
     };
 }
