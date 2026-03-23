@@ -11,3 +11,6 @@ bin
 *.so
 
 *.test*
+
+*.spv
+*.log

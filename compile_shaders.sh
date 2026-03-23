@@ -1,3 +1,2 @@
-glslc ./src/Engine/Pipeline/Shaders/*.vert -o ./src/Engine/Pipeline/Shaders/comp/vert.spv
-glslc ./src/Engine/Pipeline/Shaders/*.frag -o ./src/Engine/Pipeline/Shaders/comp/frag.spv
-glslc ./src/Engine/Pipeline/Shaders/*.comp -o ./src/Engine/Pipeline/Shaders/comp/comp.spv
+glslc ./Shaders/*.vert -o ./Shaders/triangle.vert.spv
+glslc ./Shaders/*.frag -o ./Shaders/triangle.frag.spv

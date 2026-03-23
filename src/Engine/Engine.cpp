@@ -1,0 +1,173 @@
+#include "Engine/Engine.hpp"
+
+#include <stdexcept>
+#include <array>
+
+namespace Engine
+{
+    Engine::Engine(uint16_t width, uint16_t height, const std::string &title)
+        : mWindow(width, height, title)
+    {
+        init();
+    }
+
+    Engine::~Engine()
+    {
+        if (mDevice)
+        {
+            vkDeviceWaitIdle(mDevice->getDevice());
+        }
+    }
+
+    void Engine::run()
+    {
+        while (!glfwWindowShouldClose(mWindow.getGLFWWindow()))
+        {
+            glfwPollEvents();
+            drawFrame();
+        }
+
+        vkDeviceWaitIdle(mDevice->getDevice());
+    }
+
+    void Engine::init()
+    {
+        mInstance = std::make_unique<Core::Instance::Instance>();
+        mInstance->createSurface(mWindow);
+
+        mPhysicalDevice = std::make_unique<Core::Device::PhysicalDevice>(*mInstance, mWindow);
+        mDevice = std::make_unique<Core::Device::Device>(*mPhysicalDevice);
+        mSwapChain = std::make_unique<Core::Device::SwapChain>(*mDevice, *mPhysicalDevice, *mInstance, mWindow);
+
+        mVertexShader = std::make_unique<Core::Pipeline::Shader>("Shaders/triangle.vert.spv", *mDevice);
+        mFragmentShader = std::make_unique<Core::Pipeline::Shader>("Shaders/triangle.frag.spv", *mDevice);
+
+        mGraphicsPipeline = std::make_unique<Core::Pipeline::GraphicsPipeline>(*mDevice, *mSwapChain, *mVertexShader, *mFragmentShader);
+
+        createFramebuffers();
+
+        mCommandPool = std::make_unique<Core::Commands::CommandPool>(*mDevice, *mPhysicalDevice);
+        mCommandBuffer = std::make_unique<Core::Commands::CommandBuffer>(*mDevice, *mCommandPool, static_cast<uint32_t>(mSwapChain->getImageViews().size()));
+
+        createSyncObjects();
+        recordCommandBuffers();
+    }
+
+    void Engine::createSyncObjects()
+    {
+        mSemaphorePool = std::make_unique<Core::Sync::SemaphorePool>(*mDevice, 2);
+        mFencePool = std::make_unique<Core::Sync::FencePool>(*mDevice, static_cast<uint32_t>(mSwapChain->getImageViews().size()));
+    }
+
+    void Engine::createFramebuffers()
+    {
+        if (!mGraphicsPipeline)
+            throw std::runtime_error("Graphics pipeline must be initialized before creating framebuffers.");
+
+        mFramebuffer = std::make_unique<Core::Pipeline::Framebuffer>(*mDevice, *mSwapChain, mGraphicsPipeline->getRenderPass());
+    }
+
+    void Engine::recordCommandBuffers()
+    {
+        auto framebufferCount = mFramebuffer->getFramebuffers().size();
+        auto commandBufferCount = static_cast<uint32_t>(mCommandBuffer->getCommandBuffers().size());
+
+        if (framebufferCount != commandBufferCount)
+        {
+            throw std::runtime_error("Framebuffers and command buffers must match in count.");
+        }
+
+        for (uint32_t i = 0; i < commandBufferCount; ++i)
+        {
+            VkCommandBufferBeginInfo beginInfo{};
+            beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+            beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+
+            VkCommandBuffer commandBuffer = mCommandBuffer->getCommandBuffer(i);
+            if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
+            {
+                throw std::runtime_error("failed to begin recording command buffer!");
+            }
+
+            VkRenderPassBeginInfo renderPassInfo{};
+            renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+            renderPassInfo.renderPass = mGraphicsPipeline->getRenderPass();
+            renderPassInfo.framebuffer = mFramebuffer->getFramebuffers()[i];
+            renderPassInfo.renderArea.offset = {0, 0};
+            renderPassInfo.renderArea.extent = mSwapChain->getExtent();
+
+            VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+            renderPassInfo.clearValueCount = 1;
+            renderPassInfo.pClearValues = &clearColor;
+
+            vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mGraphicsPipeline->getPipeline());
+            vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+            vkCmdEndRenderPass(commandBuffer);
+
+            if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)
+            {
+                throw std::runtime_error("failed to record command buffer!");
+            }
+        }
+    }
+
+    void Engine::drawFrame()
+    {
+        auto& fences = mFencePool->getFences();
+        auto imageIndex = uint32_t(0);
+
+        if (vkWaitForFences(mDevice->getDevice(), 1, &fences[mCurrentFrame], VK_TRUE, UINT64_MAX) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to wait for fence!");
+        }
+
+        if (vkResetFences(mDevice->getDevice(), 1, &fences[mCurrentFrame]) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to reset fence!");
+        }
+
+        vkAcquireNextImageKHR(
+            mDevice->getDevice(),
+            mSwapChain->getSwapChain(),
+            UINT64_MAX,
+            mSemaphorePool->getSemaphore(0),
+            VK_NULL_HANDLE,
+            &imageIndex);
+
+        VkSemaphore waitSemaphores[] = {mSemaphorePool->getSemaphore(0)};
+        VkSemaphore signalSemaphores[] = {mSemaphorePool->getSemaphore(1)};
+
+        VkCommandBuffer commandBuffers[] = {mCommandBuffer->getCommandBuffer(imageIndex)};
+
+        VkSubmitInfo submitInfo{};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.waitSemaphoreCount = 1;
+        submitInfo.pWaitSemaphores = waitSemaphores;
+        submitInfo.pWaitDstStageMask = nullptr;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = commandBuffers;
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores = signalSemaphores;
+
+        if (vkQueueSubmit(mDevice->getGraphicsQueue(), 1, &submitInfo, fences[mCurrentFrame]) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to submit draw command buffer!");
+        }
+
+        VkPresentInfoKHR presentInfo{};
+        presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+        presentInfo.waitSemaphoreCount = 1;
+        presentInfo.pWaitSemaphores = signalSemaphores;
+
+        VkSwapchainKHR swapChains[] = {mSwapChain->getSwapChain()};
+        presentInfo.swapchainCount = 1;
+        presentInfo.pSwapchains = swapChains;
+        presentInfo.pImageIndices = &imageIndex;
+
+        vkQueuePresentKHR(mDevice->getPresentQueue(), &presentInfo);
+
+        mCurrentFrame = (mCurrentFrame + 1) % fences.size();
+    }
+
+} // namespace Engine
