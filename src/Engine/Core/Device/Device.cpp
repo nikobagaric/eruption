@@ -67,4 +67,20 @@ namespace Engine::Core::Device
         vkGetDeviceQueue(mDevice, indices.presentFamily.value(), 0, &mPresentQueue);
     }
 
+    uint32_t Device::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const
+    {
+        VkPhysicalDeviceMemoryProperties memProperties;
+        vkGetPhysicalDeviceMemoryProperties(mPhysical.getDevice(), &memProperties);
+
+        for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
+        {
+            if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
+            {
+                return i;
+            }
+        }
+
+        throw std::runtime_error("failed to find suitable memory type!");
+    }
+
 } // namespace Engine::Core::Device
