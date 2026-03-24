@@ -31,6 +31,7 @@ namespace Engine
 
     private:
         void init();
+        void recreateSwapChain();
         void createSyncObjects();
         void createFramebuffers();
         void recordCommandBuffers();

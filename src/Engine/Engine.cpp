@@ -24,6 +24,12 @@ namespace Engine
         while (!glfwWindowShouldClose(mWindow.getGLFWWindow()))
         {
             glfwPollEvents();
+
+            if (mWindow.isFramebufferResized())
+            {
+                recreateSwapChain();
+            }
+
             drawFrame();
         }
 
@@ -65,6 +71,36 @@ namespace Engine
             throw std::runtime_error("Graphics pipeline must be initialized before creating framebuffers.");
 
         mFramebuffer = std::make_unique<Core::Pipeline::Framebuffer>(*mDevice, *mSwapChain, mGraphicsPipeline->getRenderPass());
+    }
+
+    void Engine::recreateSwapChain()
+    {
+        int width = 0, height = 0;
+        while (width == 0 || height == 0)
+        {
+            glfwGetFramebufferSize(mWindow.getGLFWWindow(), &width, &height);
+            glfwWaitEvents();
+        }
+
+        vkDeviceWaitIdle(mDevice->getDevice());
+
+        mFramebuffer.reset();
+        mGraphicsPipeline.reset();
+        mCommandBuffer.reset();
+        mSemaphorePool.reset();
+        mFencePool.reset();
+        mSwapChain.reset();
+
+        mSwapChain = std::make_unique<Core::Device::SwapChain>(*mDevice, *mPhysicalDevice, *mInstance, mWindow);
+        mGraphicsPipeline = std::make_unique<Core::Pipeline::GraphicsPipeline>(*mDevice, *mSwapChain, *mVertexShader, *mFragmentShader);
+        mFramebuffer = std::make_unique<Core::Pipeline::Framebuffer>(*mDevice, *mSwapChain, mGraphicsPipeline->getRenderPass());
+
+        mCommandBuffer = std::make_unique<Core::Commands::CommandBuffer>(*mDevice, *mCommandPool, static_cast<uint32_t>(mSwapChain->getImageViews().size()));
+
+        createSyncObjects();
+        recordCommandBuffers();
+
+        mWindow.resetFramebufferResized();
     }
 
     void Engine::recordCommandBuffers()
@@ -114,8 +150,8 @@ namespace Engine
 
     void Engine::drawFrame()
     {
-        auto& fences = mFencePool->getFences();
-        auto imageIndex = uint32_t(0);
+        auto &fences = mFencePool->getFences();
+        uint32_t imageIndex = 0;
 
         if (vkWaitForFences(mDevice->getDevice(), 1, &fences[mCurrentFrame], VK_TRUE, UINT64_MAX) != VK_SUCCESS)
         {
@@ -127,13 +163,23 @@ namespace Engine
             throw std::runtime_error("failed to reset fence!");
         }
 
-        vkAcquireNextImageKHR(
+        VkResult acquireResult = vkAcquireNextImageKHR(
             mDevice->getDevice(),
             mSwapChain->getSwapChain(),
             UINT64_MAX,
             mSemaphorePool->getSemaphore(0),
             VK_NULL_HANDLE,
             &imageIndex);
+
+        if (acquireResult == VK_ERROR_OUT_OF_DATE_KHR || acquireResult == VK_SUBOPTIMAL_KHR || mWindow.isFramebufferResized())
+        {
+            recreateSwapChain();
+            return;
+        }
+        else if (acquireResult != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to acquire swap chain image!");
+        }
 
         VkSemaphore waitSemaphores[] = {mSemaphorePool->getSemaphore(0)};
         VkSemaphore signalSemaphores[] = {mSemaphorePool->getSemaphore(1)};
@@ -165,7 +211,17 @@ namespace Engine
         presentInfo.pSwapchains = swapChains;
         presentInfo.pImageIndices = &imageIndex;
 
-        vkQueuePresentKHR(mDevice->getPresentQueue(), &presentInfo);
+        VkResult presentResult = vkQueuePresentKHR(mDevice->getPresentQueue(), &presentInfo);
+
+        if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR || mWindow.isFramebufferResized())
+        {
+            recreateSwapChain();
+            return;
+        }
+        else if (presentResult != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to present swap chain image!");
+        }
 
         mCurrentFrame = (mCurrentFrame + 1) % fences.size();
     }

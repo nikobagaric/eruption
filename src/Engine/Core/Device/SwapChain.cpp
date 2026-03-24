@@ -179,4 +179,10 @@ namespace Engine::Core::Device
         mSwapChainImages.clear();
     }
 
+    void SwapChain::recreateSwapChain()
+    {
+        cleanupSwapChain();
+        createSwapChain();
+    }
+
 } // namespace Engine::Core::Device

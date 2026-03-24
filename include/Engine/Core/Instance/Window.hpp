@@ -24,11 +24,14 @@ namespace Engine::Core::Instance
         GLFWwindow *getGLFWWindow() const { return mWindow; }
         uint16_t getWidth() const { return mWidth; }
         uint16_t getHeight() const { return mHeight; }
+        bool isFramebufferResized() const { return mFramebufferResized; }
+        void resetFramebufferResized() { mFramebufferResized = false; }
         void createSurface(VkInstance instance, VkSurfaceKHR *surface);
 
     private:
         void init();
         void loop();
+        static void framebufferSizeCallback(GLFWwindow *window, int width, int height);
 
         uint16_t mWidth;
         uint16_t mHeight;
@@ -36,5 +39,6 @@ namespace Engine::Core::Instance
         std::string mWindowName;
 
         GLFWwindow *mWindow;
+        bool mFramebufferResized = false;
     };
 }
