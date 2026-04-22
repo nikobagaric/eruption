@@ -45,8 +45,8 @@ namespace Engine
         mDevice = std::make_unique<Core::Device::Device>(*mPhysicalDevice);
         mSwapChain = std::make_unique<Core::Device::SwapChain>(*mDevice, *mPhysicalDevice, *mInstance, mWindow);
 
-        mVertexShader = std::make_unique<Core::Pipeline::Shader>("Shaders/triangle.vert.spv", *mDevice);
-        mFragmentShader = std::make_unique<Core::Pipeline::Shader>("Shaders/triangle.frag.spv", *mDevice);
+        mVertexShader = std::make_unique<Core::Pipeline::Shader>("shaders/triangle.vert.spv", *mDevice);
+        mFragmentShader = std::make_unique<Core::Pipeline::Shader>("shaders/triangle.frag.spv", *mDevice);
 
         mGraphicsPipeline = std::make_unique<Core::Pipeline::GraphicsPipeline>(*mDevice, *mSwapChain, *mVertexShader, *mFragmentShader);
 
