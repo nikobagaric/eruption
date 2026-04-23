@@ -28,12 +28,12 @@ namespace Engine::Core::Buffer
         allocInfo.allocationSize = memRequirements.size;
         allocInfo.memoryTypeIndex = mDevice.findMemoryType(memRequirements.memoryTypeBits, properties);
 
-        if (vkAllocateMemory(mDevice.getDevice(), &allocInfo, nullptr, &mBufferMemory) != VK_SUCCESS)
+        if (vkAllocateMemory(mDevice.getDevice(), &allocInfo, nullptr, &mMemory) != VK_SUCCESS)
         {
             throw std::runtime_error("failed to allocate buffer memory!");
         }
 
-        vkBindBufferMemory(mDevice.getDevice(), mBuffer, mBufferMemory, 0);
+        vkBindBufferMemory(mDevice.getDevice(), mBuffer, mMemory, 0);
     }
 
     ////////////////////

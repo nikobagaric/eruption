@@ -56,6 +56,7 @@ namespace Engine
         mCommandBuffer = std::make_unique<Core::Commands::CommandBuffer>(*mDevice, *mCommandPool, static_cast<uint32_t>(mSwapChain->getImageViews().size()));
 
         createSyncObjects();
+        createVertexBuffer();
         recordCommandBuffers();
     }
 
@@ -103,6 +104,18 @@ namespace Engine
         mWindow.resetFramebufferResized();
     }
 
+    void Engine::createVertexBuffer()
+    {
+        // Example vertex data for a triangle
+        std::vector<Core::Buffer::Vertex> vertices = {
+            {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}}, // Bottom vertex (red)
+            {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},  // Top-right vertex (green)
+            {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}  // Top-left vertex (blue)
+        };
+
+        mVertexBuffer = std::make_unique<Core::Buffer::VertexBuffer<Core::Buffer::Vertex>>(*mDevice, vertices);
+    }
+
     void Engine::recordCommandBuffers()
     {
         auto framebufferCount = mFramebuffer->getFramebuffers().size();
@@ -138,7 +151,12 @@ namespace Engine
 
             vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
             vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mGraphicsPipeline->getPipeline());
-            vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+            
+            // VkBuffer vertexBuffers[] = {mVertexBuffer->getBuffer()};
+            // VkDeviceSize offsets[] = {0};
+            // vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+            // vkCmdDraw(commandBuffer, mVertexBuffer->getVertexCount(), 1, 0, 0);
             vkCmdEndRenderPass(commandBuffer);
 
             if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)
@@ -184,13 +202,15 @@ namespace Engine
         VkSemaphore waitSemaphores[] = {mSemaphorePool->getSemaphore(0)};
         VkSemaphore signalSemaphores[] = {mSemaphorePool->getSemaphore(1)};
 
+        VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+
         VkCommandBuffer commandBuffers[] = {mCommandBuffer->getCommandBuffer(imageIndex)};
 
         VkSubmitInfo submitInfo{};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
         submitInfo.waitSemaphoreCount = 1;
         submitInfo.pWaitSemaphores = waitSemaphores;
-        submitInfo.pWaitDstStageMask = nullptr;
+        submitInfo.pWaitDstStageMask = waitStages;
         submitInfo.commandBufferCount = 1;
         submitInfo.pCommandBuffers = commandBuffers;
         submitInfo.signalSemaphoreCount = 1;

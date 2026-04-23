@@ -9,6 +9,7 @@
 #include "Engine/Core/Pipeline/GraphicsPipeline.hpp"
 #include "Engine/Core/Pipeline/Framebuffer.hpp"
 #include "Engine/Core/Commands/CommandPool.hpp"
+#include "Engine/Core/Buffer/VertexBuffer.hpp"
 #include "Engine/Core/Commands/CommandBuffer.hpp"
 #include "Engine/Core/Sync/Semaphore.hpp"
 #include "Engine/Core/Sync/Fence.hpp"
@@ -34,6 +35,7 @@ namespace Engine
         void recreateSwapChain();
         void createSyncObjects();
         void createFramebuffers();
+        void createVertexBuffer();
         void recordCommandBuffers();
         void drawFrame();
 
@@ -47,6 +49,7 @@ namespace Engine
         std::unique_ptr<Core::Pipeline::GraphicsPipeline> mGraphicsPipeline;
         std::unique_ptr<Core::Pipeline::Framebuffer> mFramebuffer;
         std::unique_ptr<Core::Commands::CommandPool> mCommandPool;
+        std::unique_ptr<Core::Buffer::VertexBuffer<Core::Buffer::Vertex>> mVertexBuffer;
         std::unique_ptr<Core::Commands::CommandBuffer> mCommandBuffer;
         std::unique_ptr<Core::Sync::SemaphorePool> mSemaphorePool;
         std::unique_ptr<Core::Sync::FencePool> mFencePool;
