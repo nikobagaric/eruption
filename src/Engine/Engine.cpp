@@ -55,6 +55,8 @@ void Engine::init() {
       *mDevice, *mCommandPool,
       static_cast<uint32_t>(mSwapChain->getImageViews().size()));
 
+  mUploadContext = std::make_unique<Core::UploadContext>(
+      *mDevice, *mCommandPool, mDevice->getGraphicsQueue());
   createSyncObjects();
   createVertexBuffer();
   recordCommandBuffers();
@@ -118,7 +120,7 @@ void Engine::createVertexBuffer() {
 
   mVertexBuffer =
       std::make_unique<Core::Buffer::VertexBuffer<Core::Buffer::Vertex>>(
-          *mDevice, vertices);
+          *mDevice, *mUploadContext, vertices);
 }
 
 void Engine::recordCommandBuffers() {

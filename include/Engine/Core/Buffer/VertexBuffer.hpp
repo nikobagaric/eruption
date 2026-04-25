@@ -1,11 +1,19 @@
 #pragma once
+
 #include "Buffer.hpp"
-#include <cstring>
+#include "Engine/Core/Utility/UploadContext.hpp"
+#include "StagingBuffer.hpp"
+
+#include <array>
+#include <cstdint>
+#include <stdexcept>
 #include <vector>
 
 #include <glm/glm.hpp>
+#include <vulkan/vulkan.h>
 
 namespace Engine::Core::Buffer {
+
 struct Vertex {
   glm::vec2 pos;
   glm::vec3 color;
@@ -41,13 +49,21 @@ struct Vertex {
 template <typename VertexType> class VertexBuffer : public Buffer {
 public:
   explicit VertexBuffer(Device::Device &device,
+                        Engine::Core::UploadContext &uploadContext,
                         const std::vector<VertexType> &vertices)
       : Buffer(device, vertices.size() * sizeof(VertexType),
-               VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-               VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                   VK_MEMORY_PROPERTY_HOST_COHERENT_BIT),
+               VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+                   VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
         mVertexCount(static_cast<uint32_t>(vertices.size())) {
-    copyData(device, vertices.data(), vertices.size() * sizeof(VertexType));
+    const VkDeviceSize bufferSize =
+        static_cast<VkDeviceSize>(vertices.size() * sizeof(VertexType));
+
+    StagingBuffer stagingBuffer{device, bufferSize};
+    stagingBuffer.upload(vertices.data(), bufferSize);
+
+    uploadContext.copyBuffer(stagingBuffer.getBuffer(), getBuffer(),
+                             bufferSize);
   }
 
   VertexBuffer(const VertexBuffer &) = delete;
@@ -59,17 +75,7 @@ public:
   uint32_t getVertexCount() const { return mVertexCount; }
 
 private:
-  uint32_t mVertexCount;
-
-  void copyData(Device::Device &device, const void *data, VkDeviceSize size) {
-    void *mappedData = nullptr;
-    if (vkMapMemory(device.getDevice(), getMemory(), 0, size, 0, &mappedData) !=
-        VK_SUCCESS) {
-      throw std::runtime_error("failed to map vertex buffer memory!");
-    }
-
-    std::memcpy(mappedData, data, size);
-    vkUnmapMemory(device.getDevice(), getMemory());
-  }
+  uint32_t mVertexCount{};
 };
+
 } // namespace Engine::Core::Buffer

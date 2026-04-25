@@ -11,6 +11,10 @@ struct UploadContext {
   Commands::CommandPool &cmdPool;
   VkQueue transferQueue;
 
+  UploadContext(Device::Device &device, Commands::CommandPool &cmdPool,
+                VkQueue transferQueue)
+      : device(device), cmdPool(cmdPool), transferQueue(transferQueue) {}
+
   void copyBuffer(VkBuffer src, VkBuffer dst, VkDeviceSize size,
                   VkDeviceSize srcOffset = 0, VkDeviceSize dstOffset = 0);
 

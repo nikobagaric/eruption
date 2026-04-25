@@ -13,6 +13,7 @@
 #include "Engine/Core/Pipeline/Shader.hpp"
 #include "Engine/Core/Sync/Fence.hpp"
 #include "Engine/Core/Sync/Semaphore.hpp"
+#include "Engine/Core/Utility/UploadContext.hpp"
 
 #include <memory>
 #include <vector>
@@ -42,6 +43,7 @@ private:
   std::unique_ptr<Core::Instance::Instance> mInstance;
   std::unique_ptr<Core::Device::PhysicalDevice> mPhysicalDevice;
   std::unique_ptr<Core::Device::Device> mDevice;
+  std::unique_ptr<Core::UploadContext> mUploadContext;
   std::unique_ptr<Core::Device::SwapChain> mSwapChain;
   std::unique_ptr<Core::Pipeline::Shader> mVertexShader;
   std::unique_ptr<Core::Pipeline::Shader> mFragmentShader;
