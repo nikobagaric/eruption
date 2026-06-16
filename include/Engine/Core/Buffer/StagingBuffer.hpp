@@ -2,8 +2,6 @@
 
 #include "Buffer.hpp"
 
-using namespace Engine::Core::Buffer;
-
 namespace Engine::Core::Buffer {
 class StagingBuffer : public Buffer {
 public:

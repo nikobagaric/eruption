@@ -1,5 +1,5 @@
 CXX := g++
-CXXFLAGS := -std=c++17 -O3 -g -Iinclude
+CXXFLAGS := -std=c++20 -O3 -g -Iinclude
 LDFLAGS := -lvulkan -lglfw
 
 ENGINE_SRC := $(shell find src/Engine -name '*.cpp')

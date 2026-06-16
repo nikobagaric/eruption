@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Engine/Core/Buffer/IndexBuffer.hpp"
 #include "Engine/Core/Buffer/VertexBuffer.hpp"
 #include "Engine/Core/Commands/CommandBuffer.hpp"
 #include "Engine/Core/Commands/CommandPool.hpp"
@@ -52,6 +53,7 @@ private:
   std::unique_ptr<Core::Commands::CommandPool> mCommandPool;
   std::unique_ptr<Core::Buffer::VertexBuffer<Core::Buffer::Vertex>>
       mVertexBuffer;
+  std::unique_ptr<Core::Buffer::IndexBuffer> mIndexBuffer;
   std::unique_ptr<Core::Commands::CommandBuffer> mCommandBuffer;
   std::unique_ptr<Core::Sync::SemaphorePool> mSemaphorePool;
   std::unique_ptr<Core::Sync::FencePool> mFencePool;

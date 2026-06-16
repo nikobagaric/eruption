@@ -13,7 +13,7 @@ public:
 
   VkBuffer getBuffer() const { return mBuffer.getBuffer(); }
   uint32_t getIndexCount() const { return mIndexCount; }
-  VkIndexType getIndexType() const { return VK_INDEX_TYPE_UINT32; }
+  static VkIndexType getIndexType() { return VK_INDEX_TYPE_UINT32; }
 
 private:
   Buffer mBuffer;
