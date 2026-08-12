@@ -26,6 +26,7 @@ public:
 
 private:
   Buffer mBuffer;
+  VkDeviceSize mSize;
   void *mMapped;
 };
 

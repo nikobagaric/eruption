@@ -1,7 +1,10 @@
+#include "Engine/Core/Pipeline/PushConstantData.hpp"
 #include "Engine/Engine.hpp"
 
-#include <array>
+#include <chrono>
 #include <stdexcept>
+#include <string>
+#include <vector>
 
 namespace Engine {
 Engine::Engine(uint16_t width, uint16_t height, const std::string &title)
@@ -44,8 +47,17 @@ void Engine::init() {
   mFragmentShader = std::make_unique<Core::Pipeline::Shader>(
       "shaders/triangle.frag.spv", *mDevice);
 
-  mGraphicsPipeline = std::make_unique<Core::Pipeline::GraphicsPipeline>(
-      *mDevice, *mSwapChain, *mVertexShader, *mFragmentShader);
+  createDescriptorSetLayout();
+
+  mGraphicsPipeline = Core::Pipeline::GraphicsPipeline::Builder(*mDevice, *mSwapChain)
+                          .setShaders(*mVertexShader, *mFragmentShader)
+                          .setVertexInput<Core::Buffer::Vertex>()
+                          .addDescriptorSetLayout(
+                              mGlobalSetLayout->getDescriptorSetLayout())
+                          .addPushConstantRange<Core::Pipeline::PushConstantData>(
+                              VK_SHADER_STAGE_VERTEX_BIT |
+                              VK_SHADER_STAGE_FRAGMENT_BIT)
+                          .build();
 
   createFramebuffers();
 
@@ -58,8 +70,88 @@ void Engine::init() {
   mUploadContext = std::make_unique<Core::UploadContext>(
       *mDevice, *mCommandPool, mDevice->getGraphicsQueue());
   createSyncObjects();
+  createTextures();
   createVertexBuffer();
+  createUniformBuffers();
+  createDescriptorPool();
+  createDescriptorSets();
   recordCommandBuffers();
+}
+
+void Engine::createDescriptorSetLayout() {
+  mGlobalSetLayout =
+      Core::Descriptor::DescriptorSetLayout::Builder(*mDevice)
+          .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                      VK_SHADER_STAGE_VERTEX_BIT)
+          .addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                      VK_SHADER_STAGE_FRAGMENT_BIT,
+                      Core::Image::kMaxTextures)
+          .build();
+}
+
+void Engine::createUniformBuffers() {
+  auto imageCount = static_cast<uint32_t>(mSwapChain->getImageViews().size());
+
+  mUniformBuffers.clear();
+  mUniformBuffers.reserve(imageCount);
+  for (uint32_t i = 0; i < imageCount; ++i) {
+    mUniformBuffers.push_back(std::make_unique<Core::Buffer::UniformBuffer>(
+        *mDevice, sizeof(Core::Buffer::UniformBufferObject)));
+  }
+}
+
+void Engine::createDescriptorPool() {
+  auto imageCount = static_cast<uint32_t>(mSwapChain->getImageViews().size());
+
+  mDescriptorPool =
+      Core::Descriptor::DescriptorPool::Builder(*mDevice)
+          .setMaxSets(imageCount)
+          .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, imageCount)
+          .addPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                       Core::Image::kMaxTextures * imageCount)
+          .build();
+}
+
+void Engine::createDescriptorSets() {
+  auto imageCount = static_cast<uint32_t>(mSwapChain->getImageViews().size());
+
+  std::vector<VkDescriptorImageInfo> imageInfos(Core::Image::kMaxTextures);
+  for (uint32_t slot = 0; slot < Core::Image::kMaxTextures; ++slot) {
+    uint32_t textureIndex = slot < mTextures.size() ? slot : 0;
+    imageInfos[slot] = mTextures[textureIndex]->getDescriptorImageInfo();
+  }
+
+  mDescriptorSets.resize(imageCount);
+  for (uint32_t i = 0; i < imageCount; ++i) {
+    VkDescriptorBufferInfo bufferInfo{};
+    bufferInfo.buffer = mUniformBuffers[i]->getBuffer();
+    bufferInfo.offset = 0;
+    bufferInfo.range = mUniformBuffers[i]->getSize();
+
+    Core::Descriptor::DescriptorWriter writer(*mGlobalSetLayout,
+                                              *mDescriptorPool);
+    if (!writer.writeBuffer(0, &bufferInfo)
+             .writeImages(1, imageInfos.data(),
+                          static_cast<uint32_t>(imageInfos.size()))
+             .build(mDescriptorSets[i])) {
+      throw std::runtime_error("failed to allocate descriptor set!");
+    }
+  }
+}
+
+void Engine::updateUniformBuffer(uint32_t imageIndex) {
+  static const auto startTime = std::chrono::high_resolution_clock::now();
+  float time = std::chrono::duration<float>(
+                   std::chrono::high_resolution_clock::now() - startTime)
+                   .count();
+
+  Core::Buffer::UniformBufferObject ubo{};
+  ubo.view = glm::mat4(1.0f);
+  ubo.proj = glm::mat4(1.0f);
+  ubo.lightPos = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+  ubo.time = time;
+
+  mUniformBuffers[imageIndex]->write(&ubo, sizeof(ubo));
 }
 
 void Engine::createSyncObjects() {
@@ -95,8 +187,15 @@ void Engine::recreateSwapChain() {
 
   mSwapChain = std::make_unique<Core::Device::SwapChain>(
       *mDevice, *mPhysicalDevice, *mInstance, mWindow);
-  mGraphicsPipeline = std::make_unique<Core::Pipeline::GraphicsPipeline>(
-      *mDevice, *mSwapChain, *mVertexShader, *mFragmentShader);
+  mGraphicsPipeline = Core::Pipeline::GraphicsPipeline::Builder(*mDevice, *mSwapChain)
+                          .setShaders(*mVertexShader, *mFragmentShader)
+                          .setVertexInput<Core::Buffer::Vertex>()
+                          .addDescriptorSetLayout(
+                              mGlobalSetLayout->getDescriptorSetLayout())
+                          .addPushConstantRange<Core::Pipeline::PushConstantData>(
+                              VK_SHADER_STAGE_VERTEX_BIT |
+                              VK_SHADER_STAGE_FRAGMENT_BIT)
+                          .build();
   mFramebuffer = std::make_unique<Core::Pipeline::Framebuffer>(
       *mDevice, *mSwapChain, mGraphicsPipeline->getRenderPass());
 
@@ -111,11 +210,10 @@ void Engine::recreateSwapChain() {
 }
 
 void Engine::createVertexBuffer() {
-  // Example vertex data for a triangle
   std::vector<Core::Buffer::Vertex> vertices = {
-      {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}}, // Bottom vertex (red)
-      {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},  // Top-right vertex (green)
-      {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}  // Top-left vertex (blue)
+      {{0.0f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.5f, 1.0f}},
+      {{0.5f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+      {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
   };
 
   mVertexBuffer =
@@ -159,6 +257,17 @@ void Engine::recordCommandBuffers() {
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                       mGraphicsPipeline->getPipeline());
 
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            mGraphicsPipeline->getPipelineLayout(), 0, 1,
+                            &mDescriptorSets[i], 0, nullptr);
+
+    Core::Pipeline::PushConstantData pushConstant{};
+    pushConstant.model = glm::mat4(1.0f);
+    pushConstant.textureIndex = 0;
+    vkCmdPushConstants(commandBuffer, mGraphicsPipeline->getPipelineLayout(),
+                       VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                       0, sizeof(pushConstant), &pushConstant);
+
     VkBuffer vertexBuffers[] = {mVertexBuffer->getBuffer()};
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
@@ -197,6 +306,8 @@ void Engine::drawFrame() {
   } else if (acquireResult != VK_SUCCESS) {
     throw std::runtime_error("failed to acquire swap chain image!");
   }
+
+  updateUniformBuffer(imageIndex);
 
   VkSemaphore waitSemaphores[] = {mSemaphorePool->getSemaphore(0)};
   VkSemaphore signalSemaphores[] = {mSemaphorePool->getSemaphore(1)};
@@ -244,6 +355,20 @@ void Engine::drawFrame() {
   }
 
   mCurrentFrame = (mCurrentFrame + 1) % fences.size();
+}
+
+void Engine::createTextures() {
+  static const std::vector<std::string> texturePaths = {
+      "textures/checker_red.ppm",
+      "textures/checker_blue.ppm",
+  };
+
+  mTextures.clear();
+  mTextures.reserve(texturePaths.size());
+  for (const auto &path : texturePaths) {
+    mTextures.push_back(std::make_unique<Core::Image::Texture>(
+        *mDevice, *mPhysicalDevice, *mUploadContext, path));
+  }
 }
 
 } // namespace Engine

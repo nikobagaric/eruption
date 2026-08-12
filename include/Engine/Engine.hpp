@@ -1,12 +1,15 @@
 #pragma once
 
 #include "Engine/Core/Buffer/IndexBuffer.hpp"
+#include "Engine/Core/Buffer/UniformBuffer.hpp"
 #include "Engine/Core/Buffer/VertexBuffer.hpp"
 #include "Engine/Core/Commands/CommandBuffer.hpp"
 #include "Engine/Core/Commands/CommandPool.hpp"
+#include "Engine/Core/Descriptor/Descriptors.hpp"
 #include "Engine/Core/Device/Device.hpp"
 #include "Engine/Core/Device/PhysicalDevice.hpp"
 #include "Engine/Core/Device/SwapChain.hpp"
+#include "Engine/Core/Image/Texture.hpp"
 #include "Engine/Core/Instance/Instance.hpp"
 #include "Engine/Core/Instance/Window.hpp"
 #include "Engine/Core/Pipeline/Framebuffer.hpp"
@@ -35,8 +38,14 @@ private:
   void init();
   void recreateSwapChain();
   void createSyncObjects();
+  void createTextures();
   void createFramebuffers();
   void createVertexBuffer();
+  void createDescriptorSetLayout();
+  void createUniformBuffers();
+  void createDescriptorPool();
+  void createDescriptorSets();
+  void updateUniformBuffer(uint32_t imageIndex);
   void recordCommandBuffers();
   void drawFrame();
 
@@ -57,6 +66,12 @@ private:
   std::unique_ptr<Core::Commands::CommandBuffer> mCommandBuffer;
   std::unique_ptr<Core::Sync::SemaphorePool> mSemaphorePool;
   std::unique_ptr<Core::Sync::FencePool> mFencePool;
+
+  std::unique_ptr<Core::Descriptor::DescriptorSetLayout> mGlobalSetLayout;
+  std::unique_ptr<Core::Descriptor::DescriptorPool> mDescriptorPool;
+  std::vector<std::unique_ptr<Core::Buffer::UniformBuffer>> mUniformBuffers;
+  std::vector<VkDescriptorSet> mDescriptorSets;
+  std::vector<std::unique_ptr<Core::Image::Texture>> mTextures;
 
   size_t mCurrentFrame = 0;
 };

@@ -20,5 +20,8 @@ struct UploadContext {
 
   void copyBufferToImage(VkBuffer src, VkImage dst, uint32_t width,
                          uint32_t height, uint32_t layerCount = 1);
+
+  void transitionImageLayout(VkImage image, VkFormat format,
+                             VkImageLayout oldLayout, VkImageLayout newLayout);
 };
 } // namespace Engine::Core

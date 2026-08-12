@@ -191,6 +191,28 @@ DescriptorWriter::writeImage(uint32_t binding,
   return *this;
 }
 
+DescriptorWriter &
+DescriptorWriter::writeImages(uint32_t binding,
+                              VkDescriptorImageInfo *imageInfos,
+                              uint32_t count) {
+  assert(mSetLayout.mBindings.count(binding) == 1 &&
+         "Layout does not contain specified binding");
+
+  const auto &bindingDesc = mSetLayout.mBindings.at(binding);
+  assert(count <= bindingDesc.descriptorCount &&
+         "Writing more descriptors than the binding declares");
+
+  writes.push_back(VkWriteDescriptorSet{
+      .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+      .dstBinding = binding,
+      .descriptorCount = count,
+      .descriptorType = bindingDesc.descriptorType,
+      .pImageInfo = imageInfos,
+  });
+
+  return *this;
+}
+
 bool DescriptorWriter::build(VkDescriptorSet &set) {
   if (!mPool.allocateDescriptor(mSetLayout.getDescriptorSetLayout(), set))
     return false;
