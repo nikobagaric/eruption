@@ -1,6 +1,8 @@
 #include "Engine/Core/Pipeline/PushConstantData.hpp"
 #include "Engine/Engine.hpp"
 
+#include <glm/gtc/matrix_transform.hpp>
+
 #include <chrono>
 #include <stdexcept>
 #include <string>
@@ -42,6 +44,9 @@ void Engine::init() {
   mSwapChain = std::make_unique<Core::Device::SwapChain>(
       *mDevice, *mPhysicalDevice, *mInstance, mWindow);
 
+  mSampleCount = mPhysicalDevice->getMaxUsableSampleCount();
+  mDepthFormat = mPhysicalDevice->findDepthFormat();
+
   mVertexShader = std::make_unique<Core::Pipeline::Shader>(
       "shaders/triangle.vert.spv", *mDevice);
   mFragmentShader = std::make_unique<Core::Pipeline::Shader>(
@@ -52,6 +57,8 @@ void Engine::init() {
   mGraphicsPipeline = Core::Pipeline::GraphicsPipeline::Builder(*mDevice, *mSwapChain)
                           .setShaders(*mVertexShader, *mFragmentShader)
                           .setVertexInput<Core::Buffer::Vertex>()
+                          .setSampleCount(mSampleCount)
+                          .setDepthFormat(mDepthFormat)
                           .addDescriptorSetLayout(
                               mGlobalSetLayout->getDescriptorSetLayout())
                           .addPushConstantRange<Core::Pipeline::PushConstantData>(
@@ -59,6 +66,8 @@ void Engine::init() {
                               VK_SHADER_STAGE_FRAGMENT_BIT)
                           .build();
 
+  createDepthResources();
+  createColorResources();
   createFramebuffers();
 
   mCommandPool =
@@ -71,7 +80,7 @@ void Engine::init() {
       *mDevice, *mCommandPool, mDevice->getGraphicsQueue());
   createSyncObjects();
   createTextures();
-  createVertexBuffer();
+  createModel();
   createUniformBuffers();
   createDescriptorPool();
   createDescriptorSets();
@@ -145,19 +154,66 @@ void Engine::updateUniformBuffer(uint32_t imageIndex) {
                    std::chrono::high_resolution_clock::now() - startTime)
                    .count();
 
+  VkExtent2D extent = mSwapChain->getExtent();
+
   Core::Buffer::UniformBufferObject ubo{};
-  ubo.view = glm::mat4(1.0f);
-  ubo.proj = glm::mat4(1.0f);
-  ubo.lightPos = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+  ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f),
+                        glm::vec3(0.0f, 1.0f, 0.0f));
+  ubo.proj = glm::perspective(glm::radians(45.0f),
+                              static_cast<float>(extent.width) /
+                                  static_cast<float>(extent.height),
+                              0.1f, 10.0f);
+  ubo.proj[1][1] *= -1;
+  ubo.lightPos = glm::vec4(2.0f, 2.0f, 2.0f, 1.0f);
   ubo.time = time;
 
   mUniformBuffers[imageIndex]->write(&ubo, sizeof(ubo));
 }
 
 void Engine::createSyncObjects() {
-  mSemaphorePool = std::make_unique<Core::Sync::SemaphorePool>(*mDevice, 2);
-  mFencePool = std::make_unique<Core::Sync::FencePool>(
-      *mDevice, static_cast<uint32_t>(mSwapChain->getImageViews().size()));
+  auto imageCount = static_cast<uint32_t>(mSwapChain->getImageViews().size());
+
+  mImageAvailableSemaphores =
+      std::make_unique<Core::Sync::SemaphorePool>(*mDevice, imageCount);
+  mRenderFinishedSemaphores =
+      std::make_unique<Core::Sync::SemaphorePool>(*mDevice, imageCount);
+  mFencePool = std::make_unique<Core::Sync::FencePool>(*mDevice, imageCount);
+}
+
+void Engine::createDepthResources() {
+  VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+  if (mDepthFormat == VK_FORMAT_D32_SFLOAT_S8_UINT ||
+      mDepthFormat == VK_FORMAT_D24_UNORM_S8_UINT) {
+    aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+  }
+
+  mDepthImage = std::make_unique<Core::Image::Image>(
+      *mDevice, mSwapChain->getExtent().width, mSwapChain->getExtent().height,
+      mDepthFormat, VK_IMAGE_TILING_OPTIMAL,
+      VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 1, mSampleCount);
+
+  mDepthImageView = std::make_unique<Core::Image::ImageView>(
+      *mDevice, mDepthImage->getImage(), mDepthFormat, aspectMask);
+}
+
+void Engine::createColorResources() {
+  if (mSampleCount == VK_SAMPLE_COUNT_1_BIT) {
+    mColorImage.reset();
+    mColorImageView.reset();
+    return;
+  }
+
+  mColorImage = std::make_unique<Core::Image::Image>(
+      *mDevice, mSwapChain->getExtent().width, mSwapChain->getExtent().height,
+      mSwapChain->getImageFormat(), VK_IMAGE_TILING_OPTIMAL,
+      VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT |
+          VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 1, mSampleCount);
+
+  mColorImageView = std::make_unique<Core::Image::ImageView>(
+      *mDevice, mColorImage->getImage(), mSwapChain->getImageFormat(),
+      VK_IMAGE_ASPECT_COLOR_BIT);
 }
 
 void Engine::createFramebuffers() {
@@ -166,7 +222,9 @@ void Engine::createFramebuffers() {
         "Graphics pipeline must be initialized before creating framebuffers.");
 
   mFramebuffer = std::make_unique<Core::Pipeline::Framebuffer>(
-      *mDevice, *mSwapChain, mGraphicsPipeline->getRenderPass());
+      *mDevice, *mSwapChain, mGraphicsPipeline->getRenderPass(),
+      mDepthImageView->getImageView(),
+      mColorImageView ? mColorImageView->getImageView() : VK_NULL_HANDLE);
 }
 
 void Engine::recreateSwapChain() {
@@ -179,9 +237,14 @@ void Engine::recreateSwapChain() {
   vkDeviceWaitIdle(mDevice->getDevice());
 
   mFramebuffer.reset();
+  mColorImageView.reset();
+  mColorImage.reset();
+  mDepthImageView.reset();
+  mDepthImage.reset();
   mGraphicsPipeline.reset();
   mCommandBuffer.reset();
-  mSemaphorePool.reset();
+  mImageAvailableSemaphores.reset();
+  mRenderFinishedSemaphores.reset();
   mFencePool.reset();
   mSwapChain.reset();
 
@@ -190,14 +253,17 @@ void Engine::recreateSwapChain() {
   mGraphicsPipeline = Core::Pipeline::GraphicsPipeline::Builder(*mDevice, *mSwapChain)
                           .setShaders(*mVertexShader, *mFragmentShader)
                           .setVertexInput<Core::Buffer::Vertex>()
+                          .setSampleCount(mSampleCount)
+                          .setDepthFormat(mDepthFormat)
                           .addDescriptorSetLayout(
                               mGlobalSetLayout->getDescriptorSetLayout())
                           .addPushConstantRange<Core::Pipeline::PushConstantData>(
                               VK_SHADER_STAGE_VERTEX_BIT |
                               VK_SHADER_STAGE_FRAGMENT_BIT)
                           .build();
-  mFramebuffer = std::make_unique<Core::Pipeline::Framebuffer>(
-      *mDevice, *mSwapChain, mGraphicsPipeline->getRenderPass());
+  createDepthResources();
+  createColorResources();
+  createFramebuffers();
 
   mCommandBuffer = std::make_unique<Core::Commands::CommandBuffer>(
       *mDevice, *mCommandPool,
@@ -209,16 +275,9 @@ void Engine::recreateSwapChain() {
   mWindow.resetFramebufferResized();
 }
 
-void Engine::createVertexBuffer() {
-  std::vector<Core::Buffer::Vertex> vertices = {
-      {{0.0f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.5f, 1.0f}},
-      {{0.5f, 0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-      {{-0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}},
-  };
-
-  mVertexBuffer =
-      std::make_unique<Core::Buffer::VertexBuffer<Core::Buffer::Vertex>>(
-          *mDevice, *mUploadContext, vertices);
+void Engine::createModel() {
+  mModel = std::make_unique<Core::Model::Model>(*mDevice, *mUploadContext,
+                                                "models/cube.obj");
 }
 
 void Engine::recordCommandBuffers() {
@@ -248,9 +307,12 @@ void Engine::recordCommandBuffers() {
     renderPassInfo.renderArea.offset = {0, 0};
     renderPassInfo.renderArea.extent = mSwapChain->getExtent();
 
-    VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
-    renderPassInfo.clearValueCount = 1;
-    renderPassInfo.pClearValues = &clearColor;
+    std::vector<VkClearValue> clearValues(
+        mSampleCount == VK_SAMPLE_COUNT_1_BIT ? 2 : 3);
+    clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+    clearValues[1].depthStencil = {1.0f, 0};
+    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+    renderPassInfo.pClearValues = clearValues.data();
 
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo,
                          VK_SUBPASS_CONTENTS_INLINE);
@@ -268,11 +330,13 @@ void Engine::recordCommandBuffers() {
                        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                        0, sizeof(pushConstant), &pushConstant);
 
-    VkBuffer vertexBuffers[] = {mVertexBuffer->getBuffer()};
+    VkBuffer vertexBuffers[] = {mModel->getVertexBuffer()};
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+    vkCmdBindIndexBuffer(commandBuffer, mModel->getIndexBuffer(), 0,
+                         Core::Model::Model::getIndexType());
 
-    vkCmdDraw(commandBuffer, mVertexBuffer->getVertexCount(), 1, 0, 0);
+    vkCmdDrawIndexed(commandBuffer, mModel->getIndexCount(), 1, 0, 0, 0);
     vkCmdEndRenderPass(commandBuffer);
 
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
@@ -297,7 +361,8 @@ void Engine::drawFrame() {
 
   VkResult acquireResult = vkAcquireNextImageKHR(
       mDevice->getDevice(), mSwapChain->getSwapChain(), UINT64_MAX,
-      mSemaphorePool->getSemaphore(0), VK_NULL_HANDLE, &imageIndex);
+      mImageAvailableSemaphores->getSemaphore(mCurrentFrame), VK_NULL_HANDLE,
+      &imageIndex);
 
   if (acquireResult == VK_ERROR_OUT_OF_DATE_KHR ||
       acquireResult == VK_SUBOPTIMAL_KHR || mWindow.isFramebufferResized()) {
@@ -309,8 +374,10 @@ void Engine::drawFrame() {
 
   updateUniformBuffer(imageIndex);
 
-  VkSemaphore waitSemaphores[] = {mSemaphorePool->getSemaphore(0)};
-  VkSemaphore signalSemaphores[] = {mSemaphorePool->getSemaphore(1)};
+  VkSemaphore waitSemaphores[] = {
+      mImageAvailableSemaphores->getSemaphore(mCurrentFrame)};
+  VkSemaphore signalSemaphores[] = {
+      mRenderFinishedSemaphores->getSemaphore(imageIndex)};
 
   VkPipelineStageFlags waitStages[] = {
       VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};

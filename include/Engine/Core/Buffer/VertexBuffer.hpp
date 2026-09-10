@@ -50,6 +50,11 @@ struct Vertex {
 
     return attributeDescriptions;
   }
+
+  bool operator==(const Vertex &other) const {
+    return pos == other.pos && color == other.color &&
+           texCoord == other.texCoord;
+  }
 };
 
 template <typename VertexType> class VertexBuffer : public Buffer {
@@ -85,3 +90,26 @@ private:
 };
 
 } // namespace Engine::Core::Buffer
+
+namespace std {
+template <> struct hash<Engine::Core::Buffer::Vertex> {
+  size_t operator()(const Engine::Core::Buffer::Vertex &vertex) const noexcept {
+    size_t seed = 0;
+    auto hashCombine = [&seed](float value) {
+      seed ^= std::hash<float>{}(value) + 0x9e3779b9 + (seed << 6) +
+              (seed >> 2);
+    };
+
+    hashCombine(vertex.pos.x);
+    hashCombine(vertex.pos.y);
+    hashCombine(vertex.pos.z);
+    hashCombine(vertex.color.x);
+    hashCombine(vertex.color.y);
+    hashCombine(vertex.color.z);
+    hashCombine(vertex.texCoord.x);
+    hashCombine(vertex.texCoord.y);
+
+    return seed;
+  }
+};
+} // namespace std

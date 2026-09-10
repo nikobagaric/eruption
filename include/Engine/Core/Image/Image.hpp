@@ -9,7 +9,8 @@ class Image {
 public:
   Image(Device::Device &device, uint32_t width, uint32_t height,
         VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
-        VkMemoryPropertyFlags properties);
+        VkMemoryPropertyFlags properties, uint32_t mipLevels = 1,
+        VkSampleCountFlagBits sampleCount = VK_SAMPLE_COUNT_1_BIT);
   ~Image();
 
   Image(const Image &) = delete;
@@ -23,6 +24,7 @@ public:
   VkFormat getFormat() const { return mFormat; }
   uint32_t getWidth() const { return mWidth; }
   uint32_t getHeight() const { return mHeight; }
+  uint32_t getMipLevels() const { return mMipLevels; }
 
 private:
   Device::Device &mDevice;
@@ -32,8 +34,10 @@ private:
   VkFormat mFormat;
   uint32_t mWidth;
   uint32_t mHeight;
+  uint32_t mMipLevels;
 
   void createImage(VkImageTiling tiling, VkImageUsageFlags usage,
-                   VkMemoryPropertyFlags properties);
+                   VkMemoryPropertyFlags properties,
+                   VkSampleCountFlagBits sampleCount);
 };
 } // namespace Engine::Core::Image

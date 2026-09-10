@@ -8,7 +8,8 @@ namespace Engine::Core::Image {
 class ImageView {
 public:
   ImageView(Device::Device &device, VkImage image, VkFormat format,
-           VkImageAspectFlags aspectFlags = VK_IMAGE_ASPECT_COLOR_BIT);
+           VkImageAspectFlags aspectFlags = VK_IMAGE_ASPECT_COLOR_BIT,
+           uint32_t mipLevels = 1);
   ~ImageView();
 
   ImageView(const ImageView &) = delete;
@@ -24,6 +25,6 @@ private:
   VkImageView mImageView{VK_NULL_HANDLE};
 
   void createImageView(VkImage image, VkFormat format,
-                       VkImageAspectFlags aspectFlags);
+                       VkImageAspectFlags aspectFlags, uint32_t mipLevels);
 };
 } // namespace Engine::Core::Image

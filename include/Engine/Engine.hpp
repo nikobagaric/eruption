@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Engine/Core/Buffer/IndexBuffer.hpp"
 #include "Engine/Core/Buffer/UniformBuffer.hpp"
 #include "Engine/Core/Buffer/VertexBuffer.hpp"
 #include "Engine/Core/Commands/CommandBuffer.hpp"
@@ -9,9 +8,12 @@
 #include "Engine/Core/Device/Device.hpp"
 #include "Engine/Core/Device/PhysicalDevice.hpp"
 #include "Engine/Core/Device/SwapChain.hpp"
+#include "Engine/Core/Image/Image.hpp"
+#include "Engine/Core/Image/ImageView.hpp"
 #include "Engine/Core/Image/Texture.hpp"
 #include "Engine/Core/Instance/Instance.hpp"
 #include "Engine/Core/Instance/Window.hpp"
+#include "Engine/Core/Model/Model.hpp"
 #include "Engine/Core/Pipeline/Framebuffer.hpp"
 #include "Engine/Core/Pipeline/GraphicsPipeline.hpp"
 #include "Engine/Core/Pipeline/Shader.hpp"
@@ -39,8 +41,10 @@ private:
   void recreateSwapChain();
   void createSyncObjects();
   void createTextures();
+  void createDepthResources();
+  void createColorResources();
   void createFramebuffers();
-  void createVertexBuffer();
+  void createModel();
   void createDescriptorSetLayout();
   void createUniformBuffers();
   void createDescriptorPool();
@@ -60,11 +64,10 @@ private:
   std::unique_ptr<Core::Pipeline::GraphicsPipeline> mGraphicsPipeline;
   std::unique_ptr<Core::Pipeline::Framebuffer> mFramebuffer;
   std::unique_ptr<Core::Commands::CommandPool> mCommandPool;
-  std::unique_ptr<Core::Buffer::VertexBuffer<Core::Buffer::Vertex>>
-      mVertexBuffer;
-  std::unique_ptr<Core::Buffer::IndexBuffer> mIndexBuffer;
+  std::unique_ptr<Core::Model::Model> mModel;
   std::unique_ptr<Core::Commands::CommandBuffer> mCommandBuffer;
-  std::unique_ptr<Core::Sync::SemaphorePool> mSemaphorePool;
+  std::unique_ptr<Core::Sync::SemaphorePool> mImageAvailableSemaphores;
+  std::unique_ptr<Core::Sync::SemaphorePool> mRenderFinishedSemaphores;
   std::unique_ptr<Core::Sync::FencePool> mFencePool;
 
   std::unique_ptr<Core::Descriptor::DescriptorSetLayout> mGlobalSetLayout;
@@ -72,6 +75,13 @@ private:
   std::vector<std::unique_ptr<Core::Buffer::UniformBuffer>> mUniformBuffers;
   std::vector<VkDescriptorSet> mDescriptorSets;
   std::vector<std::unique_ptr<Core::Image::Texture>> mTextures;
+
+  VkSampleCountFlagBits mSampleCount{VK_SAMPLE_COUNT_1_BIT};
+  VkFormat mDepthFormat{VK_FORMAT_UNDEFINED};
+  std::unique_ptr<Core::Image::Image> mDepthImage;
+  std::unique_ptr<Core::Image::ImageView> mDepthImageView;
+  std::unique_ptr<Core::Image::Image> mColorImage;
+  std::unique_ptr<Core::Image::ImageView> mColorImageView;
 
   size_t mCurrentFrame = 0;
 };

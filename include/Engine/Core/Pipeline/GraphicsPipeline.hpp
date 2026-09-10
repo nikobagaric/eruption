@@ -24,6 +24,7 @@ namespace Engine::Core::Pipeline
         VkPipelineColorBlendAttachmentState colorBlendAttachment{};
         VkPipelineColorBlendStateCreateInfo colorBlendInfo{};
         VkPipelineDepthStencilStateCreateInfo depthStencilInfo{};
+        VkFormat depthFormat{VK_FORMAT_UNDEFINED};
 
         std::vector<VkDescriptorSetLayout> setLayouts{};
         std::vector<VkPushConstantRange> pushConstantRanges{};
@@ -46,6 +47,8 @@ namespace Engine::Core::Pipeline
             }
 
             Builder& addDescriptorSetLayout(VkDescriptorSetLayout setLayout);
+            Builder& setSampleCount(VkSampleCountFlagBits sampleCount);
+            Builder& setDepthFormat(VkFormat depthFormat);
 
             template <typename PushConstantType>
             Builder& addPushConstantRange(VkShaderStageFlags stageFlags, uint32_t offset = 0) {
@@ -83,7 +86,7 @@ namespace Engine::Core::Pipeline
 
         static void defaultPipelineConfigInfo(PipelineConfigInfo& configInfo);
 
-        void createRenderPass();
+        void createRenderPass(const PipelineConfigInfo& configInfo);
         void createGraphicsPipeline(Shader& vertexShader, Shader& fragmentShader,
                                     const PipelineConfigInfo& configInfo);
 

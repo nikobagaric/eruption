@@ -3,7 +3,8 @@
 
 namespace Engine::Core::Image {
 
-void Sampler::createSampler(Device::PhysicalDevice &physicalDevice) {
+void Sampler::createSampler(Device::PhysicalDevice &physicalDevice,
+                            uint32_t mipLevels) {
   VkPhysicalDeviceProperties properties{};
   vkGetPhysicalDeviceProperties(physicalDevice.getDevice(), &properties);
 
@@ -23,7 +24,7 @@ void Sampler::createSampler(Device::PhysicalDevice &physicalDevice) {
   samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
   samplerInfo.mipLodBias = 0.0f;
   samplerInfo.minLod = 0.0f;
-  samplerInfo.maxLod = 0.0f;
+  samplerInfo.maxLod = static_cast<float>(mipLevels);
 
   if (vkCreateSampler(mDevice.getDevice(), &samplerInfo, nullptr,
                       &mSampler) != VK_SUCCESS) {
@@ -31,9 +32,10 @@ void Sampler::createSampler(Device::PhysicalDevice &physicalDevice) {
   }
 }
 
-Sampler::Sampler(Device::Device &device, Device::PhysicalDevice &physicalDevice)
+Sampler::Sampler(Device::Device &device, Device::PhysicalDevice &physicalDevice,
+                 uint32_t mipLevels)
     : mDevice(device) {
-  createSampler(physicalDevice);
+  createSampler(physicalDevice, mipLevels);
 }
 
 Sampler::~Sampler() {

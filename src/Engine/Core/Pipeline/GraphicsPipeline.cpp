@@ -28,6 +28,18 @@ namespace Engine::Core::Pipeline
         return *this;
     }
 
+    GraphicsPipeline::Builder& GraphicsPipeline::Builder::setSampleCount(VkSampleCountFlagBits sampleCount)
+    {
+        mConfigInfo.multisampleInfo.rasterizationSamples = sampleCount;
+        return *this;
+    }
+
+    GraphicsPipeline::Builder& GraphicsPipeline::Builder::setDepthFormat(VkFormat depthFormat)
+    {
+        mConfigInfo.depthFormat = depthFormat;
+        return *this;
+    }
+
     std::unique_ptr<GraphicsPipeline> GraphicsPipeline::Builder::build()
     {
         assert(mVertexShader && mFragmentShader &&
@@ -82,8 +94,8 @@ namespace Engine::Core::Pipeline
         configInfo.colorBlendInfo.blendConstants[3] = 0.0f;
 
         configInfo.depthStencilInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-        configInfo.depthStencilInfo.depthTestEnable = VK_FALSE;
-        configInfo.depthStencilInfo.depthWriteEnable = VK_FALSE;
+        configInfo.depthStencilInfo.depthTestEnable = VK_TRUE;
+        configInfo.depthStencilInfo.depthWriteEnable = VK_TRUE;
         configInfo.depthStencilInfo.depthCompareOp = VK_COMPARE_OP_LESS;
         configInfo.depthStencilInfo.depthBoundsTestEnable = VK_FALSE;
         configInfo.depthStencilInfo.minDepthBounds = 0.0f;
@@ -91,33 +103,85 @@ namespace Engine::Core::Pipeline
         configInfo.depthStencilInfo.stencilTestEnable = VK_FALSE;
     }
 
-    void GraphicsPipeline::createRenderPass()
+    void GraphicsPipeline::createRenderPass(const PipelineConfigInfo& configInfo)
     {
+        const VkSampleCountFlagBits sampleCount = configInfo.multisampleInfo.rasterizationSamples;
+        const bool msaaEnabled = sampleCount != VK_SAMPLE_COUNT_1_BIT;
+
         VkAttachmentDescription colorAttachment{};
         colorAttachment.format = mSwapChain.getImageFormat();
-        colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+        colorAttachment.samples = sampleCount;
         colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        colorAttachment.storeOp = msaaEnabled ? VK_ATTACHMENT_STORE_OP_DONT_CARE : VK_ATTACHMENT_STORE_OP_STORE;
         colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+        colorAttachment.finalLayout = msaaEnabled ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+        VkAttachmentDescription depthAttachment{};
+        depthAttachment.format = configInfo.depthFormat;
+        depthAttachment.samples = sampleCount;
+        depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+        VkAttachmentDescription colorResolveAttachment{};
+        colorResolveAttachment.format = mSwapChain.getImageFormat();
+        colorResolveAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+        colorResolveAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        colorResolveAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        colorResolveAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        colorResolveAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        colorResolveAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        colorResolveAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
         VkAttachmentReference colorAttachmentRef{};
         colorAttachmentRef.attachment = 0;
         colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
+        VkAttachmentReference depthAttachmentRef{};
+        depthAttachmentRef.attachment = 1;
+        depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+        VkAttachmentReference colorResolveAttachmentRef{};
+        colorResolveAttachmentRef.attachment = 2;
+        colorResolveAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
         VkSubpassDescription subpass{};
         subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
         subpass.colorAttachmentCount = 1;
         subpass.pColorAttachments = &colorAttachmentRef;
+        subpass.pDepthStencilAttachment = &depthAttachmentRef;
+        subpass.pResolveAttachments = msaaEnabled ? &colorResolveAttachmentRef : nullptr;
+
+        VkSubpassDependency dependency{};
+        dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+        dependency.dstSubpass = 0;
+        dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+                                  VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+        dependency.srcAccessMask = 0;
+        dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+                                  VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+        dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+                                   VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+        std::vector<VkAttachmentDescription> attachments{colorAttachment, depthAttachment};
+        if (msaaEnabled)
+        {
+            attachments.push_back(colorResolveAttachment);
+        }
 
         VkRenderPassCreateInfo renderPassInfo{};
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-        renderPassInfo.attachmentCount = 1;
-        renderPassInfo.pAttachments = &colorAttachment;
+        renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+        renderPassInfo.pAttachments = attachments.data();
         renderPassInfo.subpassCount = 1;
         renderPassInfo.pSubpasses = &subpass;
+        renderPassInfo.dependencyCount = 1;
+        renderPassInfo.pDependencies = &dependency;
 
         if (vkCreateRenderPass(mDevice.getDevice(), &renderPassInfo, nullptr, &mRenderPass) != VK_SUCCESS)
         {
@@ -212,7 +276,7 @@ namespace Engine::Core::Pipeline
                                        const PipelineConfigInfo& configInfo)
         : mDevice(device), mSwapChain(swapChain)
     {
-        createRenderPass();
+        createRenderPass(configInfo);
         createGraphicsPipeline(vertexShader, fragmentShader, configInfo);
     }
 

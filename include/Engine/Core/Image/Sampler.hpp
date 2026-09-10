@@ -8,7 +8,8 @@
 namespace Engine::Core::Image {
 class Sampler {
 public:
-  Sampler(Device::Device &device, Device::PhysicalDevice &physicalDevice);
+  Sampler(Device::Device &device, Device::PhysicalDevice &physicalDevice,
+         uint32_t mipLevels = 1);
   ~Sampler();
 
   Sampler(const Sampler &) = delete;
@@ -23,6 +24,7 @@ private:
   Device::Device &mDevice;
   VkSampler mSampler{VK_NULL_HANDLE};
 
-  void createSampler(Device::PhysicalDevice &physicalDevice);
+  void createSampler(Device::PhysicalDevice &physicalDevice,
+                     uint32_t mipLevels);
 };
 } // namespace Engine::Core::Image
