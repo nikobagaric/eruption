@@ -10,15 +10,25 @@ namespace Engine::Core::Pipeline
     {
         mFramebuffers.resize(mSwapChain.getImageViews().size());
 
+        const bool msaaEnabled = mColorImageView != VK_NULL_HANDLE;
+
         for (size_t i = 0; i < mSwapChain.getImageViews().size(); i++)
         {
-            VkImageView attachments[] = {mSwapChain.getImageViews()[i]};
+            std::vector<VkImageView> attachments;
+            if (msaaEnabled)
+            {
+                attachments = {mColorImageView, mDepthImageView, mSwapChain.getImageViews()[i]};
+            }
+            else
+            {
+                attachments = {mSwapChain.getImageViews()[i], mDepthImageView};
+            }
 
             VkFramebufferCreateInfo framebufferInfo{};
             framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
             framebufferInfo.renderPass = mRenderPass;
-            framebufferInfo.attachmentCount = 1;
-            framebufferInfo.pAttachments = attachments;
+            framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+            framebufferInfo.pAttachments = attachments.data();
             framebufferInfo.width = mSwapChain.getExtent().width;
             framebufferInfo.height = mSwapChain.getExtent().height;
             framebufferInfo.layers = 1;
@@ -42,8 +52,10 @@ namespace Engine::Core::Pipeline
     // PUBLIC METHODS //
     ////////////////////
     
-    Framebuffer::Framebuffer(Device::Device& device, Device::SwapChain& swapChain, VkRenderPass renderPass)
-        : mDevice(device), mSwapChain(swapChain), mRenderPass(renderPass)
+    Framebuffer::Framebuffer(Device::Device& device, Device::SwapChain& swapChain, VkRenderPass renderPass,
+                             VkImageView depthImageView, VkImageView colorImageView)
+        : mDevice(device), mSwapChain(swapChain), mRenderPass(renderPass),
+          mDepthImageView(depthImageView), mColorImageView(colorImageView)
     {
         createFramebuffers();
     }

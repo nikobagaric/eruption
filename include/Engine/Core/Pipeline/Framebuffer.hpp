@@ -10,7 +10,8 @@ namespace Engine::Core::Pipeline
 {
     class Framebuffer {
     public:
-        Framebuffer(Device::Device& device, Device::SwapChain& swapChain, VkRenderPass renderPass);
+        Framebuffer(Device::Device& device, Device::SwapChain& swapChain, VkRenderPass renderPass,
+                    VkImageView depthImageView, VkImageView colorImageView = VK_NULL_HANDLE);
         ~Framebuffer();
 
         Framebuffer(const Framebuffer&) = delete;
@@ -28,6 +29,8 @@ namespace Engine::Core::Pipeline
         Device::Device& mDevice;
         Device::SwapChain& mSwapChain;
         VkRenderPass mRenderPass{VK_NULL_HANDLE};
+        VkImageView mDepthImageView{VK_NULL_HANDLE};
+        VkImageView mColorImageView{VK_NULL_HANDLE};
 
         std::vector<VkFramebuffer> mFramebuffers;
     };

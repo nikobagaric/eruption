@@ -1,2 +1,2 @@
-glslc ./Shaders/*.vert -o ./Shaders/triangle.vert.spv
-glslc ./Shaders/*.frag -o ./Shaders/triangle.frag.spv
+glslc ./shaders/*.vert -o ./shaders/triangle.vert.spv
+glslc ./shaders/*.frag -o ./shaders/triangle.frag.spv

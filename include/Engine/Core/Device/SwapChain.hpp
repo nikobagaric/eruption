@@ -27,6 +27,7 @@ namespace Engine::Core::Device
     private:
         void createSwapChain();
         void cleanupSwapChain();
+        void recreateSwapChain();
 
         VkImageView createImageView(VkImage image);
 

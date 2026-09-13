@@ -44,6 +44,11 @@ namespace Engine::Core::Device
         bool isDeviceSuitable(VkPhysicalDevice device) const;
         bool checkDeviceExtensionSupport(VkPhysicalDevice device) const;
         SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device) const;
+        VkFormat findSupportedFormat(const std::vector<VkFormat> &candidates,
+                                     VkImageTiling tiling,
+                                     VkFormatFeatureFlags features) const;
+        VkFormat findDepthFormat() const;
+        VkSampleCountFlagBits getMaxUsableSampleCount() const;
 
         friend class SwapChain;
 

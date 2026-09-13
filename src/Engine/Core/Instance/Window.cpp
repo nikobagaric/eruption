@@ -1,7 +1,20 @@
 #include "Engine/Core/Instance/Window.hpp"
 
+#include <algorithm>
+
 namespace Engine::Core::Instance
 {
+    /////////
+    // EXT //
+    /////////
+    void Window::framebufferSizeCallback(GLFWwindow *window, int width, int height)
+    {
+        auto app = reinterpret_cast<Window *>(glfwGetWindowUserPointer(window));
+        app->mWidth = static_cast<uint16_t>(std::max(width, 0));
+        app->mHeight = static_cast<uint16_t>(std::max(height, 0));
+        app->mFramebufferResized = true;
+    }
+
     /////////////////////
     // PRIVATE METHODS //
     /////////////////////
@@ -14,7 +27,7 @@ namespace Engine::Core::Instance
         }
 
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE); // @todo: TO BE CHANGED TO GLFW_TRUE
+        glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
         mWindow = glfwCreateWindow(mWidth, mHeight, mWindowName.c_str(), nullptr, nullptr);
         if (!mWindow)
@@ -22,10 +35,15 @@ namespace Engine::Core::Instance
             glfwTerminate();
             throw std::runtime_error("failed to create GLFW window");
         }
+
+        glfwSetWindowUserPointer(mWindow, this);
+        glfwSetFramebufferSizeCallback(mWindow, framebufferSizeCallback);
     }
 
-    void Window::loop() {
-        while(!glfwWindowShouldClose(mWindow)) {
+    void Window::loop()
+    {
+        while (!glfwWindowShouldClose(mWindow))
+        {
             glfwPollEvents();
         }
     }
@@ -47,7 +65,8 @@ namespace Engine::Core::Instance
         init();
     }
 
-    Window::~Window() {
+    Window::~Window()
+    {
         glfwDestroyWindow(mWindow);
         glfwTerminate();
     }

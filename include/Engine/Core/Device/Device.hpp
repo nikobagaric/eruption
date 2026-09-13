@@ -20,6 +20,7 @@ namespace Engine::Core::Device
         VkDevice getDevice() const { return mDevice; }
         VkQueue getGraphicsQueue() const { return mGraphicsQueue; }
         VkQueue getPresentQueue() const { return mPresentQueue; }
+        uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) const;
 
     private:
         void createLogicalDevice();
