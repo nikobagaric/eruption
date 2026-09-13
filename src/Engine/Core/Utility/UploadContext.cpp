@@ -79,7 +79,8 @@ void UploadContext::copyBufferToImage(VkBuffer src, VkImage dst,
 void UploadContext::transitionImageLayout(VkImage image, VkFormat format,
                                           VkImageLayout oldLayout,
                                           VkImageLayout newLayout,
-                                          uint32_t mipLevels) {
+                                          uint32_t mipLevels,
+                                          uint32_t layerCount) {
   (void)format;
 
   submitOneTimeCommands(device, cmdPool, transferQueue, [&](VkCommandBuffer
@@ -95,7 +96,7 @@ void UploadContext::transitionImageLayout(VkImage image, VkFormat format,
     barrier.subresourceRange.baseMipLevel = 0;
     barrier.subresourceRange.levelCount = mipLevels;
     barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount = 1;
+    barrier.subresourceRange.layerCount = layerCount;
 
     VkPipelineStageFlags sourceStage;
     VkPipelineStageFlags destinationStage;

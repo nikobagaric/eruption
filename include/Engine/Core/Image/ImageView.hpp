@@ -9,7 +9,8 @@ class ImageView {
 public:
   ImageView(Device::Device &device, VkImage image, VkFormat format,
            VkImageAspectFlags aspectFlags = VK_IMAGE_ASPECT_COLOR_BIT,
-           uint32_t mipLevels = 1);
+           uint32_t mipLevels = 1, uint32_t layerCount = 1,
+           VkImageViewType viewType = VK_IMAGE_VIEW_TYPE_2D);
   ~ImageView();
 
   ImageView(const ImageView &) = delete;
@@ -25,6 +26,7 @@ private:
   VkImageView mImageView{VK_NULL_HANDLE};
 
   void createImageView(VkImage image, VkFormat format,
-                       VkImageAspectFlags aspectFlags, uint32_t mipLevels);
+                       VkImageAspectFlags aspectFlags, uint32_t mipLevels,
+                       uint32_t layerCount, VkImageViewType viewType);
 };
 } // namespace Engine::Core::Image

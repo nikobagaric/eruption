@@ -5,17 +5,18 @@ namespace Engine::Core::Image {
 
 void ImageView::createImageView(VkImage image, VkFormat format,
                                 VkImageAspectFlags aspectFlags,
-                                uint32_t mipLevels) {
+                                uint32_t mipLevels, uint32_t layerCount,
+                                VkImageViewType viewType) {
   VkImageViewCreateInfo viewInfo{};
   viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
   viewInfo.image = image;
-  viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+  viewInfo.viewType = viewType;
   viewInfo.format = format;
   viewInfo.subresourceRange.aspectMask = aspectFlags;
   viewInfo.subresourceRange.baseMipLevel = 0;
   viewInfo.subresourceRange.levelCount = mipLevels;
   viewInfo.subresourceRange.baseArrayLayer = 0;
-  viewInfo.subresourceRange.layerCount = 1;
+  viewInfo.subresourceRange.layerCount = layerCount;
 
   if (vkCreateImageView(mDevice.getDevice(), &viewInfo, nullptr,
                         &mImageView) != VK_SUCCESS) {
@@ -24,9 +25,10 @@ void ImageView::createImageView(VkImage image, VkFormat format,
 }
 
 ImageView::ImageView(Device::Device &device, VkImage image, VkFormat format,
-                     VkImageAspectFlags aspectFlags, uint32_t mipLevels)
+                     VkImageAspectFlags aspectFlags, uint32_t mipLevels,
+                     uint32_t layerCount, VkImageViewType viewType)
     : mDevice(device) {
-  createImageView(image, format, aspectFlags, mipLevels);
+  createImageView(image, format, aspectFlags, mipLevels, layerCount, viewType);
 }
 
 ImageView::~ImageView() {

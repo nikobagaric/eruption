@@ -8,15 +8,17 @@ namespace Engine::Core::Image {
 
 void Image::createImage(VkImageTiling tiling, VkImageUsageFlags usage,
                         VkMemoryPropertyFlags properties,
-                        VkSampleCountFlagBits sampleCount) {
+                        VkSampleCountFlagBits sampleCount,
+                        VkImageCreateFlags flags) {
   VkImageCreateInfo imageInfo{};
   imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+  imageInfo.flags = flags;
   imageInfo.imageType = VK_IMAGE_TYPE_2D;
   imageInfo.extent.width = mWidth;
   imageInfo.extent.height = mHeight;
   imageInfo.extent.depth = 1;
   imageInfo.mipLevels = mMipLevels;
-  imageInfo.arrayLayers = 1;
+  imageInfo.arrayLayers = mArrayLayers;
   imageInfo.format = mFormat;
   imageInfo.tiling = tiling;
   imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -53,10 +55,11 @@ void Image::createImage(VkImageTiling tiling, VkImageUsageFlags usage,
 Image::Image(Device::Device &device, uint32_t width, uint32_t height,
              VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
              VkMemoryPropertyFlags properties, uint32_t mipLevels,
-             VkSampleCountFlagBits sampleCount)
+             VkSampleCountFlagBits sampleCount, uint32_t arrayLayers,
+             VkImageCreateFlags flags)
     : mDevice(device), mFormat(format), mWidth(width), mHeight(height),
-      mMipLevels(mipLevels) {
-  createImage(tiling, usage, properties, sampleCount);
+      mMipLevels(mipLevels), mArrayLayers(arrayLayers) {
+  createImage(tiling, usage, properties, sampleCount, flags);
 }
 
 Image::~Image() {

@@ -8,9 +8,13 @@
 #include "Engine/Core/Device/Device.hpp"
 #include "Engine/Core/Device/PhysicalDevice.hpp"
 #include "Engine/Core/Device/SwapChain.hpp"
+#include "Engine/Core/ECS/Entity.hpp"
+#include "Engine/Core/ECS/Registry.hpp"
+#include "Engine/Core/Image/CubemapTexture.hpp"
 #include "Engine/Core/Image/Image.hpp"
 #include "Engine/Core/Image/ImageView.hpp"
 #include "Engine/Core/Image/Texture.hpp"
+#include "Engine/Core/Input/KeyboardMovementController.hpp"
 #include "Engine/Core/Instance/Instance.hpp"
 #include "Engine/Core/Instance/Window.hpp"
 #include "Engine/Core/Model/Model.hpp"
@@ -21,6 +25,7 @@
 #include "Engine/Core/Sync/Semaphore.hpp"
 #include "Engine/Core/Utility/UploadContext.hpp"
 
+#include <chrono>
 #include <memory>
 #include <vector>
 
@@ -28,7 +33,9 @@ namespace Engine {
 class Engine {
 public:
   explicit Engine(uint16_t width = 1280, uint16_t height = 720,
-                  const std::string &title = "Eruption");
+                  const std::string &title = "Eruption",
+                  const std::string &modelPath = "models/cube.obj",
+                  bool enableSkyboxScene = false);
   ~Engine();
 
   Engine(const Engine &) = delete;
@@ -45,6 +52,7 @@ private:
   void createColorResources();
   void createFramebuffers();
   void createModel();
+  void createScene();
   void createDescriptorSetLayout();
   void createUniformBuffers();
   void createDescriptorPool();
@@ -52,7 +60,10 @@ private:
   void updateUniformBuffer(uint32_t imageIndex);
   void recordCommandBuffers();
   void drawFrame();
+  void performRaycast();
 
+  std::string mModelPath;
+  bool mSkyboxSceneEnabled;
   Core::Instance::Window mWindow;
   std::unique_ptr<Core::Instance::Instance> mInstance;
   std::unique_ptr<Core::Device::PhysicalDevice> mPhysicalDevice;
@@ -62,9 +73,16 @@ private:
   std::unique_ptr<Core::Pipeline::Shader> mVertexShader;
   std::unique_ptr<Core::Pipeline::Shader> mFragmentShader;
   std::unique_ptr<Core::Pipeline::GraphicsPipeline> mGraphicsPipeline;
+  std::unique_ptr<Core::Pipeline::Shader> mLitVertexShader;
+  std::unique_ptr<Core::Pipeline::Shader> mLitFragmentShader;
+  std::unique_ptr<Core::Pipeline::GraphicsPipeline> mLitPipeline;
+  std::unique_ptr<Core::Pipeline::Shader> mSkyboxVertexShader;
+  std::unique_ptr<Core::Pipeline::Shader> mSkyboxFragmentShader;
+  std::unique_ptr<Core::Pipeline::GraphicsPipeline> mSkyboxPipeline;
   std::unique_ptr<Core::Pipeline::Framebuffer> mFramebuffer;
   std::unique_ptr<Core::Commands::CommandPool> mCommandPool;
   std::unique_ptr<Core::Model::Model> mModel;
+  std::unique_ptr<Core::Model::Model> mCubeModel;
   std::unique_ptr<Core::Commands::CommandBuffer> mCommandBuffer;
   std::unique_ptr<Core::Sync::SemaphorePool> mImageAvailableSemaphores;
   std::unique_ptr<Core::Sync::SemaphorePool> mRenderFinishedSemaphores;
@@ -75,6 +93,7 @@ private:
   std::vector<std::unique_ptr<Core::Buffer::UniformBuffer>> mUniformBuffers;
   std::vector<VkDescriptorSet> mDescriptorSets;
   std::vector<std::unique_ptr<Core::Image::Texture>> mTextures;
+  std::unique_ptr<Core::Image::CubemapTexture> mSkyboxTexture;
 
   VkSampleCountFlagBits mSampleCount{VK_SAMPLE_COUNT_1_BIT};
   VkFormat mDepthFormat{VK_FORMAT_UNDEFINED};
@@ -82,6 +101,16 @@ private:
   std::unique_ptr<Core::Image::ImageView> mDepthImageView;
   std::unique_ptr<Core::Image::Image> mColorImage;
   std::unique_ptr<Core::Image::ImageView> mColorImageView;
+
+  Core::ECS::Registry mRegistry;
+  Core::ECS::Entity mMeshEntity{Core::ECS::kNullEntity};
+  Core::ECS::Entity mBlueSphereEntity{Core::ECS::kNullEntity};
+  Core::ECS::Entity mRedSphereEntity{Core::ECS::kNullEntity};
+  Core::ECS::Entity mGroundEntity{Core::ECS::kNullEntity};
+  Core::ECS::Entity mCameraEntity{Core::ECS::kNullEntity};
+  Core::Input::KeyboardMovementController mCameraController;
+  std::chrono::steady_clock::time_point mLastFrameTime;
+  bool mRaycastKeyWasPressed{false};
 
   size_t mCurrentFrame = 0;
 };

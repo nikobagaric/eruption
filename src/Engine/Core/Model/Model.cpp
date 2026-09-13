@@ -25,33 +25,66 @@ void Model::loadFromFile(Device::Device &device, UploadContext &uploadContext,
   std::vector<uint32_t> indices;
   std::unordered_map<Buffer::Vertex, uint32_t> uniqueVertices{};
 
+  // tinyobj triangulates every face by default, so mesh.indices is always a
+  // flat run of consecutive triangles: walk it three at a time rather than
+  // per-index, so a face lacking vn data can still get a normal computed
+  // from its own triangle.
   for (const auto &shape : shapes) {
-    for (const auto &index : shape.mesh.indices) {
-      Buffer::Vertex vertex{};
+    const auto &meshIndices = shape.mesh.indices;
+    for (size_t f = 0; f + 2 < meshIndices.size(); f += 3) {
+      std::array<Buffer::Vertex, 3> faceVertices{};
+      bool hasNormals = true;
 
-      vertex.pos = {
-          attrib.vertices[3 * index.vertex_index + 0],
-          attrib.vertices[3 * index.vertex_index + 1],
-          attrib.vertices[3 * index.vertex_index + 2],
-      };
+      for (int k = 0; k < 3; ++k) {
+        const auto &index = meshIndices[f + k];
+        Buffer::Vertex &vertex = faceVertices[k];
 
-      if (index.texcoord_index >= 0) {
-        vertex.texCoord = {
-            attrib.texcoords[2 * index.texcoord_index + 0],
-            1.0f - attrib.texcoords[2 * index.texcoord_index + 1],
+        vertex.pos = {
+            attrib.vertices[3 * index.vertex_index + 0],
+            attrib.vertices[3 * index.vertex_index + 1],
+            attrib.vertices[3 * index.vertex_index + 2],
         };
-      } else {
-        vertex.texCoord = {0.0f, 0.0f};
+
+        if (index.texcoord_index >= 0) {
+          vertex.texCoord = {
+              attrib.texcoords[2 * index.texcoord_index + 0],
+              1.0f - attrib.texcoords[2 * index.texcoord_index + 1],
+          };
+        } else {
+          vertex.texCoord = {0.0f, 0.0f};
+        }
+
+        vertex.color = {1.0f, 1.0f, 1.0f};
+
+        if (index.normal_index >= 0 && !attrib.normals.empty()) {
+          vertex.normal = {
+              attrib.normals[3 * index.normal_index + 0],
+              attrib.normals[3 * index.normal_index + 1],
+              attrib.normals[3 * index.normal_index + 2],
+          };
+        } else {
+          hasNormals = false;
+        }
       }
 
-      vertex.color = {1.0f, 1.0f, 1.0f};
-
-      if (uniqueVertices.count(vertex) == 0) {
-        uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
-        vertices.push_back(vertex);
+      // Fall back to a flat face normal for meshes authored without vn data,
+      // so loading never silently produces zero-length normals.
+      if (!hasNormals) {
+        const glm::vec3 faceNormal = glm::normalize(
+            glm::cross(faceVertices[1].pos - faceVertices[0].pos,
+                      faceVertices[2].pos - faceVertices[0].pos));
+        for (auto &vertex : faceVertices) {
+          vertex.normal = faceNormal;
+        }
       }
 
-      indices.push_back(uniqueVertices[vertex]);
+      for (auto &vertex : faceVertices) {
+        if (uniqueVertices.count(vertex) == 0) {
+          uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
+          vertices.push_back(vertex);
+        }
+        indices.push_back(uniqueVertices[vertex]);
+      }
     }
   }
 

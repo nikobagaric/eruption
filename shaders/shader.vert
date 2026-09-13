@@ -14,6 +14,11 @@ layout(push_constant) uniform Push {
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec3 inColor;
 layout(location = 2) in vec2 inTexCoord;
+// Unused here, but must stay declared: the shared vertex input layout
+// (Buffer::Vertex) always binds a normal attribute at location 3, and
+// validation layers flag any bound attribute the vertex shader doesn't
+// consume.
+layout(location = 3) in vec3 inNormal;
 
 layout(location = 0) out vec3 fragColor;
 layout(location = 1) out vec2 fragTexCoord;

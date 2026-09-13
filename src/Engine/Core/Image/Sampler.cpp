@@ -4,7 +4,8 @@
 namespace Engine::Core::Image {
 
 void Sampler::createSampler(Device::PhysicalDevice &physicalDevice,
-                            uint32_t mipLevels) {
+                            uint32_t mipLevels,
+                            VkSamplerAddressMode addressMode) {
   VkPhysicalDeviceProperties properties{};
   vkGetPhysicalDeviceProperties(physicalDevice.getDevice(), &properties);
 
@@ -12,9 +13,9 @@ void Sampler::createSampler(Device::PhysicalDevice &physicalDevice,
   samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
   samplerInfo.magFilter = VK_FILTER_LINEAR;
   samplerInfo.minFilter = VK_FILTER_LINEAR;
-  samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-  samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-  samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+  samplerInfo.addressModeU = addressMode;
+  samplerInfo.addressModeV = addressMode;
+  samplerInfo.addressModeW = addressMode;
   samplerInfo.anisotropyEnable = VK_TRUE;
   samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
   samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
@@ -33,9 +34,9 @@ void Sampler::createSampler(Device::PhysicalDevice &physicalDevice,
 }
 
 Sampler::Sampler(Device::Device &device, Device::PhysicalDevice &physicalDevice,
-                 uint32_t mipLevels)
+                 uint32_t mipLevels, VkSamplerAddressMode addressMode)
     : mDevice(device) {
-  createSampler(physicalDevice, mipLevels);
+  createSampler(physicalDevice, mipLevels, addressMode);
 }
 
 Sampler::~Sampler() {

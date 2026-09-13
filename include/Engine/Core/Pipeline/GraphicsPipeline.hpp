@@ -49,6 +49,9 @@ namespace Engine::Core::Pipeline
             Builder& addDescriptorSetLayout(VkDescriptorSetLayout setLayout);
             Builder& setSampleCount(VkSampleCountFlagBits sampleCount);
             Builder& setDepthFormat(VkFormat depthFormat);
+            Builder& setCullMode(VkCullModeFlags cullMode);
+            Builder& setDepthWriteEnabled(bool enabled);
+            Builder& setDepthCompareOp(VkCompareOp compareOp);
 
             template <typename PushConstantType>
             Builder& addPushConstantRange(VkShaderStageFlags stageFlags, uint32_t offset = 0) {

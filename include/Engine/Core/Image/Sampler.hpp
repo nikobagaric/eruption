@@ -9,7 +9,8 @@ namespace Engine::Core::Image {
 class Sampler {
 public:
   Sampler(Device::Device &device, Device::PhysicalDevice &physicalDevice,
-         uint32_t mipLevels = 1);
+         uint32_t mipLevels = 1,
+         VkSamplerAddressMode addressMode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
   ~Sampler();
 
   Sampler(const Sampler &) = delete;
@@ -25,6 +26,6 @@ private:
   VkSampler mSampler{VK_NULL_HANDLE};
 
   void createSampler(Device::PhysicalDevice &physicalDevice,
-                     uint32_t mipLevels);
+                     uint32_t mipLevels, VkSamplerAddressMode addressMode);
 };
 } // namespace Engine::Core::Image
