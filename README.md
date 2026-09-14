@@ -1,7 +1,15 @@
-# ERUPTION - High-performance Platform-agnostic Vulkan Game & Animation engine
+# ERUPTION - Visokoperformantni, platformski neovisan Vulkan pokretač za igre i animaciju
 
-In-dev
+U razvoju
 
-## Building
+## Izgradnja
 
-Requires the Vulkan SDK (for `glslc` and the validation layers), GLFW, and a C++20 compiler. Run `./compile_all.sh` to compile the shaders and build both test binaries (`bin/tests/triangle`, `bin/tests/sphere_scene`) in one step, or use `make` directly (`make shaders` to just recompile shaders, `make` / `make all` for everything, `make clean` to remove build output). Run a binary from the repo root, e.g. `./bin/tests/sphere_scene`, since asset paths (`shaders/`, `models/`, `textures/`) are resolved relative to the working directory. On Windows, run `compile_for_windows.bat` (needs `VULKAN_SDK` set and a MinGW `g++`/GLFW install).
+Potreban je Vulkan SDK (za `glslc` i validation layere), GLFW i C++20 kompajler. Pokreni `./compile_all.sh` da u jednom koraku kompajliraš shadere i izgradiš oba test binarna (`bin/tests/triangle`, `bin/tests/sphere_scene`), ili koristi `make` izravno (`make shaders` samo za ponovno kompajliranje shadera, `make` / `make all` za sve, `make clean` za brisanje build outputa). Binarne datoteke pokreći iz roota repozitorija, npr. `./bin/tests/sphere_scene`, jer se putanje do asseta (`shaders/`, `models/`, `textures/`) rješavaju relativno na radni direktorij. Na Windowsima pokreni `compile_for_windows.bat` (potrebno je postaviti `VULKAN_SDK` i imati instaliran MinGW `g++`/GLFW).
+
+## Struktura
+
+- `Core/Device` - Instance, PhysicalDevice, Device, SwapChain - inicijalizacija Vulkana i komunikacija s GPU-om.
+- `Core/Pipeline` - GraphicsPipeline, Shader, Framebuffer, PushConstantData - konfiguracija cjevovoda za iscrtavanje.
+- `Core/Commands` - CommandPool, CommandBuffer - snimanje i slanje naredbi na GPU.
+- `Core/ECS` - Registry, SparseSet, Entity - Entity Component System temeljen na sparse/dense spremištu komponenti radi cache-friendly pristupa podacima.
+- `Core/Scene` - Transform, Camera, SphereCollider - podaci o objektima u sceni.
