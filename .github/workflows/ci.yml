@@ -16,7 +16,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y build-essential libvulkan-dev libglfw3-dev glslc
+        sudo apt-get install -y build-essential libvulkan-dev libglfw3-dev libglm-dev glslc
 
     - name: Compile shaders
       run: ./compile_shaders.sh
