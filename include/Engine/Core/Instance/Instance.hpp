@@ -5,41 +5,36 @@
 #include <vulkan/vulkan.h>
 
 #include <vector>
-#include <iostream>
 
-namespace Engine::Core::Instance
-{
-    class Instance
-    {
-    public:
-        explicit Instance();
-        ~Instance();
+namespace Engine::Core::Instance {
+class Instance {
+public:
+  explicit Instance();
+  ~Instance();
 
-        Instance(const Instance&) = delete;
-        Instance& operator=(const Instance&) = delete;
+  Instance(const Instance &) = delete;
+  Instance &operator=(const Instance &) = delete;
 
-        // @todo: find out what to do with move op
+  VkInstance getInstance() const { return mVkInstance; }
+  VkSurfaceKHR getSurface() const { return mSurface; }
 
-        VkInstance getInstance() const { return mVkInstance; }
-        VkSurfaceKHR getSurface() const { return mSurface; }
+  void createSurface(Window &window);
 
-        void createSurface(Window &window);
+private:
+  void createInstance();
 
-    private:
-        void createInstance();
+  inline void setupDebugMessenger();
 
-        inline void setupDebugMessenger();
-        
-        std::vector<const char*> getRequiredExtensions();
-        bool checkValidationLayerSupport();
+  std::vector<const char *> getRequiredExtensions();
+  bool checkValidationLayerSupport();
 
-        VkInstance mVkInstance;
-        VkSurfaceKHR mSurface;
-        VkDebugUtilsMessengerEXT mDebugMessenger;
+  VkInstance mVkInstance;
+  VkSurfaceKHR mSurface;
+  VkDebugUtilsMessengerEXT mDebugMessenger;
 
-        bool mEnableValidationLayers;
-        
-        std::vector<const char*> mValidationLayers;
-        std::vector<const char*> mRequiredExtensions;
-    };
-}
+  bool mEnableValidationLayers;
+
+  std::vector<const char *> mValidationLayers;
+  std::vector<const char *> mRequiredExtensions;
+};
+} // namespace Engine::Core::Instance
